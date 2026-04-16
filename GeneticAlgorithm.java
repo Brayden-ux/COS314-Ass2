@@ -24,45 +24,40 @@ public class GeneticAlgorithm{
         int n=instance.n;
         double mutationRate=1.0/n;
 
-        int[][] pop=new int[POP_SIZE][n];
+        Solution[] pop=new Solution[POP_SIZE];
 
         for(int i=0; i<POP_SIZE; i++){
-            pop[i]=randomSolution(n);
+            pop[i]=new Solution(randomSolution(n));
             repair(pop[i]);
+            pop[i].fitness=instance.evaluate(pop[i].genes);
         }
 
         double bestFitness=Double.NEGATIVE_INFINITY;
 
         for (int gen=0;gen<MAX_GEN;gen++){
-            
-            double[] fitness=new double[POP_SIZE];
-            for(int i=0; i<POP_SIZE; i++) fitness[i]=instance.evaluate(pop[i]);
-
             for(int i=0; i<POP_SIZE; i++){
-
-                if(fitness[i] > bestFitness){
-                    bestFitness=fitness[i];
-                    
-                }
+                pop[i].fitness=instance.evaluate(pop[i].genes);
             }
 
-            Integer[] indices=new Integer[POP_SIZE];
+            Arrays.sort(pop, (a, b) -> Double.compare(b.fitness, a.fitness));
 
-            for(int i=0; i<POP_SIZE; i++) indices[i]=i;
+            if(pop[0].fitness > bestFitness){
+                bestFitness=pop[0].fitness;
+            }
 
-            Arrays.sort(indices, (a, b) -> Double.compare(fitness[b], fitness[a]));
+            Solution[] newPop=new Solution[POP_SIZE];
 
-            int[][] newPop=new int[POP_SIZE][n];
-
-            for(int e=0; e<ELITES; e++) newPop[e]=pop[indices[e]].clone();
+            for(int e=0; e<ELITES; e++){
+                newPop[e]=pop[e].clone();
+            }
 
             
             for(int i=ELITES; i<POP_SIZE; i++){
-                int[] parent1=tournamentSelect(pop, fitness);
+                int[] parent1=tournamentSelect(pop);
                 int[] child;
 
                 if(rnd.nextDouble()<CROSSOVER_RATE){
-                    int[] parent2=tournamentSelect(pop, fitness);
+                    int[] parent2=tournamentSelect(pop);
                     child=singlePointCrossover(parent1, parent2);
 
                 } else {
@@ -70,23 +65,24 @@ public class GeneticAlgorithm{
                 }
 
                 bitFlipMutate(child, mutationRate);
-                repair(child);
-                newPop[i] = child;
+                Solution childSol=new Solution(child);
+                repair(childSol);
+                childSol.fitness=instance.evaluate(childSol.genes);
+                newPop[i]=childSol;
             }
 
             pop=newPop;
         }
 
         for(int i=0; i<POP_SIZE; i++){
-
-            double f=instance.evaluate(pop[i]);
+            double f=instance.evaluate(pop[i].genes);
             if(f>bestFitness) bestFitness=f;
         }
 
         return bestFitness;
     }
 
-    private int[] tournamentSelect(int[][] pop, double[] fitness){
+    private int[] tournamentSelect(Solution[] pop){
 
         int best=rnd.nextInt(POP_SIZE);
 
@@ -94,12 +90,12 @@ public class GeneticAlgorithm{
 
             int candidate=rnd.nextInt(POP_SIZE);
 
-            if(fitness[candidate] > fitness[best]){
+            if(pop[candidate].fitness > pop[best].fitness){
                 best=candidate;
                 }
         }
 
-        return pop[best].clone();
+        return pop[best].genes.clone();
     }
 
     private int[] singlePointCrossover(int[] parent1, int[] parent2){
@@ -138,16 +134,16 @@ public class GeneticAlgorithm{
         return sol;
     }
 
-    private void repair(int[] sol){
+    private void repair(Solution sol){
         int n=instance.n;
 
-        while(instance.totalWeight(sol)>instance.capacity){
+        while(instance.totalWeight(sol.genes)>instance.capacity){
             double worstRatio=Double.MAX_VALUE;
             int worstIdx=-1;
 
             for(int i=0; i<n; i++){
 
-                if(sol[i]==1){
+                if(sol.genes[i]==1){
                     double ratio=(instance.weights[i]>0)? instance.values[i] / instance.weights[i]:instance.values[i];
 
                     if(ratio<worstRatio){ 
@@ -157,7 +153,7 @@ public class GeneticAlgorithm{
             }
 
             if(worstIdx==-1) break;
-            sol[worstIdx]=0;
+            sol.genes[worstIdx]=0;
         }
     }
  
