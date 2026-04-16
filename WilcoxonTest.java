@@ -5,7 +5,6 @@ import java.util.*;
  * H0: The medians (means) of the two algorithms are equivalent.
  * H1: ILS is better than GA (one-tailed).
  * Significance level: alpha = 0.05
- *
  * Uses exact critical values for small n (n <= 25),
  * and normal approximation for larger n.
  */
@@ -53,7 +52,11 @@ public class WilcoxonTest {
 
         // Remove ties (d_i == 0), collect absolute differences with sign
         List<double[]> nonZero = new ArrayList<>();
-        for (double d : diffs) if (d != 0) nonZero.add(new double[]{Math.abs(d), Math.signum(d)});
+        for (double d : diffs){
+            if (d != 0){
+                nonZero.add(new double[]{Math.abs(d), Math.signum(d)});
+            } 
+        } 
 
         int n = nonZero.size();
         System.out.println("Non-zero differences: " + n);
@@ -80,8 +83,12 @@ public class WilcoxonTest {
         // Compute W+ (sum of ranks for positive differences)
         double wPlus  = 0, wMinus = 0;
         for (int k = 0; k < n; k++) {
-            if (nonZero.get(k)[1] > 0) wPlus  += ranks[k];
-            else                        wMinus += ranks[k];
+            if (nonZero.get(k)[1] > 0){
+                wPlus  += ranks[k];
+            }
+            else{
+                wMinus += ranks[k];
+            }                        
         }
 
         System.out.printf("W+ (ILS better) = %.1f%n", wPlus);
