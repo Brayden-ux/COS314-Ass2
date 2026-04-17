@@ -21,22 +21,22 @@ public class ILS{
         int perturbK = Math.max(2, n/5);
 
         //Build greedy initial solution
-        int[] current = greedyInit();
+        Solution current = greedyInit();
         current = localSearch(current);
-        double bestFitness = inst.evaluate(current);
-        int[] bestSol = current.clone();
+        Solution bestSol = current.clone();
+        double bestFitness = bestSol.fitness;
 
         int noImprove = 0;
 
         for(int i=0; i<MAX_ITERATIONs; i++){
             // Perturbation
-            int[] perturbed = perturb(current, perturbK);
+            Solution perturbed = perturb(current, perturbK);
             // Local search from perturbed
-            int[] localOpt = localSearch(perturbed);
-            double localFitness = inst.evaluate(localOpt);
+            Solution localOpt = localSearch(perturbed);
+            double localFitness = localOpt.fitness;
 
             // Acceptance criterion: non-worsening
-            if(localFitness >= inst.evaluate(current)){
+            if(localFitness >= current.fitness){
                 current = localOpt;
                 noImprove = (localFitness > bestFitness) ? 0 : noImprove + 1;
                 if(localFitness > bestFitness){
@@ -49,14 +49,12 @@ public class ILS{
 
             // Restart from best if stuck
             if(noImprove >= IMPROVE_LIMIT){
-                current = bestSol.clone();
-                // Small random perturbation to escape
-                current = perturb(current, Math.max(1, perturbK / 2));
-                current = localSearch(current);
+                // Start from best, then apply a smaller perturbation to escape
+                current = localSearch(perturb(bestSol, Math.max(1, perturbK / 2)));
                 noImprove = 0;
-                double newFit = inst.evaluate(current);
-                if(newFit > bestFitness){ 
-                    bestFitness = newFit; bestSol = current.clone(); 
+                if(current.fitness > bestFitness){
+                    bestFitness = current.fitness;
+                    bestSol = current.clone();
                 }
                 current = bestSol.clone();
             }
@@ -65,7 +63,7 @@ public class ILS{
     }
 
     // Greedy construction, sort items by value/weight ratio descending,
-    private int[] greedyInit(){
+    private Solution greedyInit(){
         int n = inst.n;
         Integer[] order = new Integer[n];
         for(int i = 0; i < n; i++){
@@ -76,38 +74,47 @@ public class ILS{
             double ratioB = (inst.weights[b] > 0) ? inst.values[b] / inst.weights[b] : Double.MAX_VALUE;
             return Double.compare(ratioB, ratioA);
         });
-        int[] sol = new int[n];
+        int[] genes = new int[n];
         double currentWeight = 0;
         for(int idx : order){
             if(currentWeight + inst.weights[idx] <= inst.capacity){
-                sol[idx] = 1;
+                genes[idx] = 1;
                 currentWeight += inst.weights[idx];
             }
         }
+        Solution sol = new Solution(genes);
+        sol.fitness = inst.evaluate(sol.genes);
         return sol;
     }
 
     // Best-improvement bit-flip local search.
-    private int[] localSearch(int[] sol){
+    private Solution localSearch(Solution start){
         int n = inst.n;
-        sol = sol.clone();
+        Solution sol = start.clone();
+        if(sol.fitness == Double.NEGATIVE_INFINITY){
+            sol.fitness = inst.evaluate(sol.genes);
+        }
         boolean improved = true;
         while(improved){
             improved = false;
-            double currentFitness = inst.evaluate(sol);
+            double currentFitness = sol.fitness;
             int bestIdx = -1;
             double bestGain = 0;
+            double bestNewFitness = currentFitness;
             for(int i = 0; i < n; i++){
-                sol[i] ^= 1;
-                double newFit = inst.evaluate(sol);
+                sol.genes[i] ^= 1;
+                double newFit = inst.evaluate(sol.genes);
                 double gain = newFit - currentFitness;
                 if(gain > bestGain){
-                    bestGain = gain; bestIdx = i;
+                    bestGain = gain;
+                    bestIdx = i;
+                    bestNewFitness = newFit;
                 }
-                sol[i] ^= 1; 
+                sol.genes[i] ^= 1;
             }
             if(bestIdx >= 0){
-                sol[bestIdx] ^= 1;
+                sol.genes[bestIdx] ^= 1;
+                sol.fitness = bestNewFitness;
                 improved = true;
             }
         }
@@ -115,17 +122,19 @@ public class ILS{
     }
 
     // Perturbation: randomly flip k bits 
-    private int[] perturb(int[] sol, int k){
+    private Solution perturb(Solution sol, int k){
         int n = inst.n;
-        int[] perturbed = sol.clone();
+        int[] perturbedGenes = sol.genes.clone();
         Set<Integer> flipped = new HashSet<>();
         while(flipped.size() < Math.min(k, n)){
             int idx = luck.nextInt(n);
-            if(flipped.add(idx)) perturbed[idx] ^= 1;
+            if(flipped.add(idx)) perturbedGenes[idx] ^= 1;
         }
         // Repair if infeasible
-        repair(perturbed);
-        return perturbed;
+        repair(perturbedGenes);
+        Solution out = new Solution(perturbedGenes);
+        out.fitness = inst.evaluate(out.genes);
+        return out;
     }
 
     // Remove lowest value/weight ratio items until feasible

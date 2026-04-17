@@ -10,37 +10,54 @@ import java.util.*;
  */
 public class WilcoxonTest {
 
-    // Critical values W+ for one-tailed test at alpha=0.05
-    // Index = n (number of non-zero differences), value = critical W+
-    // Reject H0 if W+ >= criticalValue
-    private static final int[] CRITICAL_W = {
-        0,  // n=0 (unused)
-        0,  // n=1
-        0,  // n=2
-        0,  // n=3
-        0,  // n=4
-        8,  // n=5
-        11, // n=6
-        13, // n=7
-        16, // n=8
-        19, // n=9
-        21, // n=10
-        24, // n=11
-        28, // n=12
-        29, // n=13
-        33, // n=14
-        37, // n=15
-        41, // n=16
-        45, // n=17
-        49, // n=18
-        54, // n=19
-        59, // n=20
-        64, // n=21
-        69, // n=22
-        75, // n=23
-        80, // n=24
-        86  // n=25
-    };
+    private static final double ALPHA = 0.05;
+    private static final double EPS = 1e-12;
+
+    // Exact one-tailed p-value for W+ under H0.
+    // Uses subset-sum DP over (possibly half-integer) ranks scaled by 2.
+    private static double exactOneTailedPValue(double[] ranks, double observedWPlus){
+        int n = ranks.length;
+
+        int[] scaled = new int[n];
+        int observedSum;
+        {
+            double scaledObserved = observedWPlus * 2.0;
+            observedSum = (int)Math.round(scaledObserved);
+            if(Math.abs(scaledObserved - observedSum) > 1e-9){
+                // Should not happen with average ranks, but keep the method safe.
+                observedSum = (int)Math.ceil(scaledObserved - 1e-9);
+            }
+        }
+
+        int total = 0;
+        for(int i = 0; i < n; i++){
+            double scaledRank = ranks[i] * 2.0;
+            int r = (int)Math.round(scaledRank);
+            if(Math.abs(scaledRank - r) > 1e-9){
+                // Fallback: force upward so we don't under-estimate p-value.
+                r = (int)Math.ceil(scaledRank - 1e-9);
+            }
+            scaled[i] = r;
+            total += r;
+        }
+
+        long[] ways = new long[total + 1];
+        ways[0] = 1L;
+        for(int r : scaled){
+            for(int s = total; s >= r; s--){
+                ways[s] += ways[s - r];
+            }
+        }
+
+        long favorable = 0L;
+        for(int s = Math.max(0, observedSum); s <= total; s++){
+            favorable += ways[s];
+        }
+
+        // Total sign patterns = 2^n
+        double totalPatterns = Math.pow(2.0, n);
+        return favorable / totalPatterns;
+    }
 
     public static void run(List<Double> ilsScores, List<Double> gaScores) {
         int m = Math.min(ilsScores.size(), gaScores.size());
@@ -53,7 +70,7 @@ public class WilcoxonTest {
         // Remove ties (d_i == 0), collect absolute differences with sign
         List<double[]> nonZero = new ArrayList<>();
         for (double d : diffs){
-            if (d != 0){
+            if (Math.abs(d) > EPS){
                 nonZero.add(new double[]{Math.abs(d), Math.signum(d)});
             } 
         } 
@@ -74,7 +91,7 @@ public class WilcoxonTest {
         int i = 0;
         while (i < n) {
             int j = i;
-            while (j < n && nonZero.get(j)[0] == nonZero.get(i)[0]) j++;
+            while (j < n && Math.abs(nonZero.get(j)[0] - nonZero.get(i)[0]) <= EPS) j++;
             double avgRank = (i + 1 + j) / 2.0;
             for (int k = i; k < j; k++) ranks[k] = avgRank;
             i = j;
@@ -97,16 +114,19 @@ public class WilcoxonTest {
         boolean reject;
         String method;
 
+        double pValue = Double.NaN;
+
         if (n <= 25) {
-            int critical = CRITICAL_W[Math.min(n, 25)];
-            System.out.printf("Critical value (n=%d, alpha=0.05, one-tailed): %d%n", n, critical);
-            reject = wPlus >= critical;
-            method = "exact table";
+            pValue = exactOneTailedPValue(ranks, wPlus);
+            System.out.printf("Exact one-tailed p-value: %.6f (alpha=%.2f)%n", pValue, ALPHA);
+            reject = pValue <= ALPHA;
+            method = "exact p-value";
         } else {
             // Normal approximation
             double mean = n * (n + 1) / 4.0;
             double variance = n * (n + 1) * (2 * n + 1) / 24.0;
-            double z = (wPlus - mean) / Math.sqrt(variance);
+            // Continuity correction for upper-tail test
+            double z = (wPlus - mean - 0.5) / Math.sqrt(variance);
             System.out.printf("Z-score: %.4f (critical z for alpha=0.05 one-tailed: 1.6449)%n", z);
             reject = z >= 1.6449;
             method = "normal approximation";

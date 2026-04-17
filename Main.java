@@ -12,14 +12,11 @@ public class Main {
 
         System.out.print("Enter seed value: ");
         long seed = scanner.nextLong();
-        scanner.nextLine();
 
-        System.out.print("Enter path to instances directory: ");
-        String dirPath = scanner.nextLine().trim();
-
-        File dir = new File(dirPath);
+        // Instance files are expected to be in the current working directory.
+        File dir = new File(System.getProperty("user.dir"));
         if (!dir.exists() || !dir.isDirectory()) {
-            System.err.println("Directory not found: " + dirPath);
+            System.err.println("Working directory not found: " + dir.getAbsolutePath());
             System.exit(1);
         }
 
