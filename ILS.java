@@ -5,8 +5,8 @@ import java.util.*;
 
 public class ILS{
 
-    private static final int MAX_ITERATIONs = 1000;
-    private static final int IMPROVE_LIMIT = 100;
+    private static final int MAX_ITERATIONs = 50;
+    private static final int IMPROVE_LIMIT = 10;
 
     private final KnapsackInstance inst;
     private final Random luck;

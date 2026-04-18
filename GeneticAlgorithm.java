@@ -5,7 +5,7 @@ import java.util.*;
 public class GeneticAlgorithm{
 
     private static final int POP_SIZE=100;
-    private static final int MAX_GEN=500;
+    private static final int MAX_GEN=50;
     private static final double CROSSOVER_RATE=0.85;
     private static final int ELITES=2;
     private static final int TOURNAMENT_K=3;

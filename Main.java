@@ -46,17 +46,16 @@ public class Main {
         List<Double> ilsResults = new ArrayList<>();
         List<Double> gaResults = new ArrayList<>();
 
-        System.out.println("\n" + "=".repeat(100));
-        System.out.printf("%-25s %-6s %15s %15s %15s%n","Problem Instance", "Algo", "Best Solution", "Known Optimum", "Runtime (s)");
-        System.out.println("=".repeat(100));
+        System.out.println("\n" + "=".repeat(120));
+        System.out.printf("%-25s %-6s %15s %15s %20s %15s%n",
+            "Problem Instance", "Algo", "Best Solution", "Known Optimum", "Best Seed", "Runtime (s)");
+        System.out.println("=".repeat(120));
 
-        int numRuns = 30 ;
-        Random seedRandom = new Random(seed);
+        int numRuns = 30;
 
         for (String name : instanceNames) {
             File f = new File(dir, name);
             if (!f.exists()) {
-                // System.out.println("File not found, skipping: " + name);
                 continue;
             }
             KnapsackInstance instance = KnapsackInstance.load(f);
@@ -66,9 +65,23 @@ public class Main {
             double bestGA = Double.NEGATIVE_INFINITY;
             double bestILSTime = 0;
             double bestGATime = 0;
+            int bestILSSeed = 0;
+            int bestGASeed = 0;
+
+            // Generate 30 unique seeds per dataset (reproducible)
+            Random seedRandom = new Random(seed ^ name.hashCode());
+            int[] seeds = new int[numRuns];
+            HashSet<Integer> used = new HashSet<>();
+            for (int run = 0; run < numRuns; run++) {
+                int s;
+                do {
+                    s = seedRandom.nextInt();
+                } while (!used.add(s));
+                seeds[run] = s;
+            }
 
             for (int run = 0; run < numRuns; run++) {
-                long ilsSeed = seedRandom.nextLong();
+                int ilsSeed = seeds[run];
                 long startILS = System.currentTimeMillis();
                 ILS ils = new ILS(instance, ilsSeed);
                 double ilsResult = ils.run();
@@ -76,9 +89,10 @@ public class Main {
                 if (ilsResult > bestILS){
                     bestILS = ilsResult;
                     bestILSTime = ilsTime;
-                } 
+                    bestILSSeed = ilsSeed;
+                }
 
-                long gaSeed = seedRandom.nextLong();
+                int gaSeed = seeds[run];
                 long startGa = System.currentTimeMillis(); 
                 GeneticAlgorithm ga = new GeneticAlgorithm(instance, gaSeed);
                 double gaResult = ga.run();
@@ -86,18 +100,18 @@ public class Main {
                 if (gaResult > bestGA){
                     bestGA = gaResult;
                     bestGATime = gaTime;
+                    bestGASeed = gaSeed;
                 }
             }
-                ilsResults.add(bestILS);
-                gaResults.add(bestGA);
-    
+            ilsResults.add(bestILS);
+            gaResults.add(bestGA);
 
-                String optStr = (knownOpt < 0) ? "N/A" : String.format("%.4f", knownOpt);
-                System.out.printf("%-25s %-6s %15.4f %15s %15.4f%n",
-                    name, "ILS", bestILS, optStr, bestILSTime);
-                System.out.printf("%-25s %-6s %15.4f %15s %15.4f%n",
-                    "", "GA", bestGA, optStr, bestGATime);
-                System.out.println("-".repeat(100));
+            String optStr = (knownOpt < 0) ? "N/A" : String.format("%.4f", knownOpt);
+            System.out.printf("%-25s %-6s %15.4f %15s %20d %15.4f%n",
+                name, "ILS", bestILS, optStr, bestILSSeed, bestILSTime);
+            System.out.printf("%-25s %-6s %15.4f %15s %20d %15.4f%n",
+                "", "GA", bestGA, optStr, bestGASeed, bestGATime);
+            System.out.println("-".repeat(120));
         }
 
         // Wilcoxon signed-rank test (one-tailed, 5% level)

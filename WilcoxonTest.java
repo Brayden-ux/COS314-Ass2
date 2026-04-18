@@ -1,20 +1,17 @@
 import java.util.*;
 
-/**
- * One-tailed Wilcoxon Signed-Rank Test
- * H0: The medians (means) of the two algorithms are equivalent.
- * H1: ILS is better than GA (one-tailed).
- * Significance level: alpha = 0.05
- * Uses exact critical values for small n (n <= 25),
- * and normal approximation for larger n.
- */
+
+// One-tailed Wilcoxon Signed-Rank Test
+// H0: The medians (means) of the two algorithms are equivalent.
+// H1: ILS is better than GA (one-tailed).
+
 public class WilcoxonTest {
 
     private static final double ALPHA = 0.05;
     private static final double EPS = 1e-12;
 
     // Exact one-tailed p-value for W+ under H0.
-    // Uses subset-sum DP over (possibly half-integer) ranks scaled by 2.
+    // Uses subset-sum DP over ranks scaled by 2.
     private static double exactOneTailedPValue(double[] ranks, double observedWPlus){
         int n = ranks.length;
 
@@ -24,7 +21,6 @@ public class WilcoxonTest {
             double scaledObserved = observedWPlus * 2.0;
             observedSum = (int)Math.round(scaledObserved);
             if(Math.abs(scaledObserved - observedSum) > 1e-9){
-                // Should not happen with average ranks, but keep the method safe.
                 observedSum = (int)Math.ceil(scaledObserved - 1e-9);
             }
         }
@@ -63,7 +59,6 @@ public class WilcoxonTest {
         int m = Math.min(ilsScores.size(), gaScores.size());
         System.out.println("Number of instances (n): " + m);
 
-        // Compute differences d_i = ILS_i - GA_i
         double[] diffs = new double[m];
         for (int i = 0; i < m; i++) diffs[i] = ilsScores.get(i) - gaScores.get(i);
 
