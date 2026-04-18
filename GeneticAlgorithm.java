@@ -35,9 +35,6 @@ public class GeneticAlgorithm{
         double bestFitness=Double.NEGATIVE_INFINITY;
 
         for (int gen=0;gen<MAX_GEN;gen++){
-            for(int i=0; i<POP_SIZE; i++){
-                pop[i].fitness=instance.evaluate(pop[i].genes);
-            }
 
             Arrays.sort(pop, (a, b) -> Double.compare(b.fitness, a.fitness));
 
@@ -75,7 +72,7 @@ public class GeneticAlgorithm{
         }
 
         for(int i=0; i<POP_SIZE; i++){
-            double f=instance.evaluate(pop[i].genes);
+            double f=pop[i].fitness;
             if(f>bestFitness) bestFitness=f;
         }
 
