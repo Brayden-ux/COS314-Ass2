@@ -18,5 +18,6 @@ This project implements and compares Genetic Algorithm (GA) and Iterated Local S
 4. Run the program:
         -java Main
 5. When prompted, enter a seed value (any integer).
+6. Alternatively, run java -jar KnapsackSolver.jar
 
 The program will output the results for each dataset and the statistical comparison.
