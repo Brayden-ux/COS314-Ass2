@@ -50,37 +50,54 @@ public class Main {
         System.out.printf("%-25s %-6s %15s %15s %15s%n","Problem Instance", "Algo", "Best Solution", "Known Optimum", "Runtime (s)");
         System.out.println("=".repeat(100));
 
+        int numRuns = 30 ;
+        Random seedRandom = new Random(seed);
+
         for (String name : instanceNames) {
             File f = new File(dir, name);
             if (!f.exists()) {
-                System.out.println("File not found, skipping: " + name);
+                // System.out.println("File not found, skipping: " + name);
                 continue;
             }
-
             KnapsackInstance instance = KnapsackInstance.load(f);
+
             double knownOpt = knownOptimums.getOrDefault(name, -1.0);
+            double bestILS = Double.NEGATIVE_INFINITY;
+            double bestGA = Double.NEGATIVE_INFINITY;
+            double bestILSTime = 0;
+            double bestGATime = 0;
 
-            // Run ILS
-            long startILS = System.currentTimeMillis();
-            ILS ils = new ILS(instance, seed);
-            double ilsBest = ils.run();
-            double ilsTime = (System.currentTimeMillis() - startILS) / 1000.0;
+            for (int run = 0; run < numRuns; run++) {
+                long ilsSeed = seedRandom.nextLong();
+                long startILS = System.currentTimeMillis();
+                ILS ils = new ILS(instance, ilsSeed);
+                double ilsResult = ils.run();
+                double ilsTime = (System.currentTimeMillis()-startILS)/1000.0;
+                if (ilsResult > bestILS){
+                    bestILS = ilsResult;
+                    bestILSTime = ilsTime;
+                } 
 
-            // Run GA
-            long startGA = System.currentTimeMillis();
-            GeneticAlgorithm ga = new GeneticAlgorithm(instance, seed);
-            double gaBest = ga.run();
-            double gaTime = (System.currentTimeMillis() - startGA) / 1000.0;
+                long gaSeed = seedRandom.nextLong();
+                long startGa = System.currentTimeMillis(); 
+                GeneticAlgorithm ga = new GeneticAlgorithm(instance, gaSeed);
+                double gaResult = ga.run();
+                double gaTime = (System.currentTimeMillis()- startGa) / 1000.0;
+                if (gaResult > bestGA){
+                    bestGA = gaResult;
+                    bestGATime = gaTime;
+                }
+            }
+                ilsResults.add(bestILS);
+                gaResults.add(bestGA);
+    
 
-            ilsResults.add(ilsBest);
-            gaResults.add(gaBest);
-
-            String optStr = (knownOpt < 0) ? "N/A" : String.format("%.4f", knownOpt);
-            System.out.printf("%-25s %-6s %15.4f %15s %15.4f%n",
-                name, "ILS", ilsBest, optStr, ilsTime);
-            System.out.printf("%-25s %-6s %15.4f %15s %15.4f%n",
-                "", "GA", gaBest, optStr, gaTime);
-            System.out.println("-".repeat(100));
+                String optStr = (knownOpt < 0) ? "N/A" : String.format("%.4f", knownOpt);
+                System.out.printf("%-25s %-6s %15.4f %15s %15.4f%n",
+                    name, "ILS", bestILS, optStr, bestILSTime);
+                System.out.printf("%-25s %-6s %15.4f %15s %15.4f%n",
+                    "", "GA", bestGA, optStr, bestGATime);
+                System.out.println("-".repeat(100));
         }
 
         // Wilcoxon signed-rank test (one-tailed, 5% level)
